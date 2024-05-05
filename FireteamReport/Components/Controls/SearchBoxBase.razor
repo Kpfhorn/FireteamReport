@@ -1,0 +1,63 @@
+﻿@typeparam TResult where TResult : new()
+
+<div class="container">
+    <label for="default-search" class="form-label">Search</label>
+    <!--<div class="input-group">
+        <input type="search" @oninput="OnSearchChanged" id="default-search" class="form-control" placeholder="@SearchBoxText" required>
+        <button type="button" @onclick="SearchAsync" class="btn btn-primary input-group-addon">Search</button>
+
+                
+    </div>-->
+    <div class="dropdown">
+        <input type="search" @oninput="OnSearchChanged" id="default-search" class="dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" placeholder="@SearchBoxText" required>
+        <div class="dropdown-menu" aria-labelledby="default-search">
+            @foreach(var item in Results)
+            {
+                <button class="dropdown-item" type="button">@ButtonText(item)</button>
+            }
+        </div>
+
+    </div>
+</div>
+
+@code {
+    public string? SearchString { get; protected set; }
+
+    [Parameter]
+    public string? SearchBoxText { get; init; } = "Placeholder";
+
+    [Parameter]
+    public EventCallback<IList<TResult>?> OnSearchResultsReady { get; set; }
+
+    [Parameter]
+    public EventCallback<SearchBoxBase<TResult>> DoSearch { get; set; }
+
+    [Parameter]
+    public EventCallback OnSearchStarted { get; set; }
+
+    public IList<TResult>? Results { get; set; }
+
+    public TResult SelectedItem { get; set; }
+
+    public Func<TResult, string> ButtonText { get; set; } = (result) => string.Empty;
+
+
+    private async Task SearchAsync()
+    {
+
+        if (SearchString is not null)
+        {
+            await OnSearchStarted.InvokeAsync();
+            await DoSearch.InvokeAsync(this);
+            if(Results is not null)
+                await OnSearchResultsReady.InvokeAsync(Results);
+        }
+    }
+
+    private async Task OnSearchChanged(ChangeEventArgs args)
+    {
+        SearchString = args?.Value?.ToString();
+        await SearchAsync();
+    }
+
+}

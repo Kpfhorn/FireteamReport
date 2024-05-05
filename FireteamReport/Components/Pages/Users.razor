@@ -1,0 +1,162 @@
+﻿@page "/Users"
+@using DotNetBungieAPI.Service.Abstractions
+@using System.Timers;
+@using System.Linq
+@inject ILogger<Users> Logger
+@inject IBungieClient Client
+@inject Destiny2 destiny2;
+@rendermode InteractiveServer
+
+<PageTitle>Users</PageTitle>
+
+<h1>Users</h1>
+@*
+<div class="container-fluid">
+    <div class="row">
+    <div class="col-3">
+        <UserSelectBox OnUserSelected="SetUser"></UserSelectBox>
+    </div>
+    <div class="col-9">
+            <RadzenDataList TItem="@BungieUser" Data="@_userResults">
+                <Template>
+                    <UserCharacterCard User="@context" Client="@Client"/>
+                </Template>
+            </RadzenDataList>
+
+    </div>
+    </div>
+</div> *@
+
+<FluentBodyContent>
+    <FluentStack Orientation="Orientation.Horizontal" Width="100%">
+        <FluentStack Orientation="Orientation.Vertical" Width="30%">
+            <FluentSearch @ref=userSearch
+                          @bind-Value="SearchValue"
+                          @oninput="@(e => SearchValue = e.Value?.ToString())"
+                          Placeholder="Search for user" />
+            <FluentListbox 
+                aria-label="search results" 
+                Items=@searchResults 
+                TOption="BungieUser" 
+                OptionText="@(e => $"{e.BungieGlobalDisplayName}#{e.BungieGlobalDisplayNameCode}")" 
+                SelectedOptionChanged="OnSelectedOptionChanged" />
+        </FluentStack>
+        <FluentStack Orientation="Orientation.Vertical" Width="70%">
+            <FluentListbox
+                aria-Label="selected bungie users"
+                Items=@_selectedUsers
+                TOption="BungieUser">
+                <OptionTemplate>
+                    <UserCharacterCard User="context" Client="Client"/>
+                </OptionTemplate>
+            </FluentListbox>
+        </FluentStack>
+    </FluentStack>
+</FluentBodyContent>
+
+
+
+@code {
+
+    private Timer? timer = null;
+
+    private FluentSearch? userSearch;
+
+    private string? searchValue = string.Empty;
+
+
+    private string? SearchValue
+    {
+        get => searchValue;
+        set
+        {
+            if (value != searchValue)
+            {
+                searchValue = value;
+                DisposeTimer();
+                //ShowMessageBar the debounce time in ms to the timer below
+                timer = new Timer(400);
+                timer.Elapsed += TimerElapsed_TickAsync;
+                timer.Enabled = true;
+                timer.Start();
+            }
+        }
+    }
+
+    private void OnSelectedOptionChanged(BungieUser? user)
+    {
+        SearchValue = string.Empty;
+
+        if (user is null) return;
+
+        if (_selectedUsers.Contains(user)) return;
+
+        _selectedUsers.Add(user);
+    }
+
+    private async void TimerElapsed_TickAsync(object? sender, EventArgs e)
+    {
+        DisposeTimer();
+        await InvokeAsync(OnSearchAsync);
+    }
+
+    private void DisposeTimer()
+    {
+        if (timer != null)
+        {
+            timer.Enabled = false;
+            timer.Elapsed -= TimerElapsed_TickAsync;
+            timer.Dispose();
+            timer = null;
+        }
+    }
+
+    private List<BungieUser> searchResults = [];
+    private List<BungieUser> _selectedUsers = new List<BungieUser>();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await Client.DefinitionProvider.Initialize();
+    }
+
+
+    private async Task OnSearchAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(SearchValue))
+        {
+            string searchTerm = SearchValue.ToLower();
+            Logger.LogDebug("Searching for {SearchValue}", searchTerm);
+
+            //You can also call an API here if the list is not local
+            List<BungieUser> temp = await destiny2.SearchUserAsync(searchTerm).ToListAsync();
+            if (temp.Count() > 0)
+            {
+                searchResults = temp;
+            }
+            else
+            {
+                searchResults = [];
+            }
+            StateHasChanged();
+        }
+        else
+        {
+            searchResults = [];
+            StateHasChanged();
+        }
+    }
+
+    private void HandleClear()
+    {
+        if (string.IsNullOrWhiteSpace(SearchValue))
+            return;
+
+        DisposeTimer();
+        searchResults = [];
+        SearchValue = string.Empty;
+        StateHasChanged();
+    }
+
+
+
+}

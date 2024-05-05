@@ -1,0 +1,39 @@
+﻿
+@using DotNetBungieAPI.Service.Abstractions
+@inject IDestiny2DefinitionRepository definitions;
+@inject ILogger<UserCharacterCard> Logger
+@* 
+<RadzenCard>
+    <RadzenRow>
+        <RadzenColumn>
+            <RadzenText>@User.ToString()</RadzenText>
+            <RadzenText>@User?.Character?.Class</RadzenText>
+            <RadzenText>@User?.Character?.PowerLevel</RadzenText>
+        </RadzenColumn>
+    </RadzenRow>
+
+</RadzenCard> *@
+
+<FluentCard>
+    <FluentStack>
+        <h2>@User.ToString()</h2>
+
+    </FluentStack>
+</FluentCard>
+
+@code {
+
+    [Parameter]
+    public BungieUser User {get; set;}
+
+    [Parameter]
+    public IBungieClient Client { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await User.GetBungieUserAsync()
+                .ResolveMembership();
+    }
+
+
+}
